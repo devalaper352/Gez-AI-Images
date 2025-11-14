@@ -1,5 +1,6 @@
 
-import type { User, CreditPlan, RewardSettings, FeatureFlags, SocialMediaSettings, PaymentSettings, PromoCode, PaymentRequest, ContactMessage, ChatMessage, GenerationHistoryItem, ActivityLogItem, SocialMediaLink, UpdatePost, VideoGenerationHistoryItem, HowItWorksStep, FeatureItem } from '../types';
+
+import type { User, CreditPlan, RewardSettings, FeatureFlags, SocialMediaSettings, PaymentSettings, PromoCode, PaymentRequest, ContactMessage, ChatMessage, GenerationHistoryItem, ActivityLogItem, SocialMediaLink, UpdatePost, VideoGenerationHistoryItem, HowItWorksStep, FeatureItem, AdPlacement } from '../types';
 import { INITIAL_CREDITS, DEFAULT_REWARD_SETTINGS } from '../constants';
 
 // --- Simple ID Generator ---
@@ -24,6 +25,7 @@ interface AppDatabase {
     updates: UpdatePost[];
     howItWorksSteps: HowItWorksStep[];
     featureItems: FeatureItem[];
+    ads: AdPlacement[];
 }
 
 const DB_KEY = 'gez-ai-images-db';
@@ -48,6 +50,10 @@ const getDb = (): AppDatabase => {
             }
             if (!parsedDb.featureItems) {
                 parsedDb.featureItems = getInitialFeatures();
+                dbChanged = true;
+            }
+             if (!parsedDb.ads) {
+                parsedDb.ads = [];
                 dbChanged = true;
             }
 
@@ -79,6 +85,7 @@ const getInitialFeatures = (): FeatureItem[] => [
     { id: generateId('feat'), icon: 'MagicWandIcon', title: 'Advanced Image Studio', description: 'Go beyond text prompts. Upload your own photos and transform them with AI-powered styles and edits.', order: 4, flagName: 'isImageStudioEnabled' },
     { id: generateId('feat'), icon: 'VideoIcon', title: 'AI Video Generation', description: 'Bring your ideas to life with AI-powered video. Generate stunning short clips from text or an image.', order: 5, flagName: 'isVideoGeneratorEnabled' },
     { id: generateId('feat'), icon: 'ChatBubbleIcon', title: 'Intelligent Chat', description: 'Ask questions, get up-to-date information with Google Search, or solve complex problems with our AI assistant.', order: 6, flagName: 'isChatBotEnabled' },
+    { id: generateId('feat'), icon: 'MegaphoneIcon', title: 'Ads Management', description: 'Control Google Ads or Custom Ads across the platform from a centralized dashboard.', order: 7, flagName: 'isAdsSystemEnabled' },
 ];
 
 const initializeDb = (): AppDatabase => {
@@ -116,6 +123,7 @@ const initializeDb = (): AppDatabase => {
             isDailyRewardEnabled: true,
             isChatBotEnabled: true,
             isPurchaseSystemEnabled: true,
+            isAdsSystemEnabled: true,
         },
         socialMediaSettings: {
             isEnabled: true,
@@ -144,6 +152,7 @@ const initializeDb = (): AppDatabase => {
         ],
         howItWorksSteps: getInitialHowItWorks(),
         featureItems: getInitialFeatures(),
+        ads: [],
     };
     saveDb(initialDb);
     return initialDb;
@@ -460,6 +469,41 @@ export const submitContactMessage = (email: string, message: string) => {
     db.contactMessages.unshift(contactMessage);
     saveDb(db);
 };
+
+// --- Ads Management ---
+
+export const getAds = (): AdPlacement[] => {
+    const db = getDb();
+    return db.ads;
+};
+
+export const saveAd = (ad: Partial<AdPlacement>) => {
+    const db = getDb();
+    if (ad.id) { // Update
+        const index = db.ads.findIndex(a => a.id === ad.id);
+        if (index !== -1) {
+            db.ads[index] = { ...db.ads[index], ...ad } as AdPlacement;
+        }
+    } else { // Create
+        const newAd: AdPlacement = {
+            id: generateId('ad'),
+            name: ad.name || 'Untitled Ad',
+            position: ad.position || 'header',
+            type: ad.type || 'google',
+            content: ad.content || {},
+            isEnabled: ad.isEnabled ?? false,
+        };
+        db.ads.push(newAd);
+    }
+    saveDb(db);
+};
+
+export const deleteAd = (adId: string) => {
+    const db = getDb();
+    db.ads = db.ads.filter(a => a.id !== adId);
+    saveDb(db);
+};
+
 
 // --- Admin Panel Functions ---
 export const getAllUsers = (): User[] => getDb().users;

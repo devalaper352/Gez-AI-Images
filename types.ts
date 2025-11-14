@@ -1,4 +1,5 @@
 
+
 export interface User {
     id: string;
     fullName: string;
@@ -82,6 +83,7 @@ export interface FeatureFlags {
     isDailyRewardEnabled: boolean;
     isChatBotEnabled: boolean;
     isPurchaseSystemEnabled: boolean;
+    isAdsSystemEnabled: boolean;
 }
 
 export interface SocialMediaLink {
@@ -155,4 +157,17 @@ export interface FeatureItem {
     description: string;
     order: number;
     flagName?: keyof FeatureFlags;
+}
+
+export interface AdPlacement {
+    id: string;
+    name: string;
+    position: 'header' | 'footer' | 'leftSidebar' | 'rightSidebar' | 'homepageBanner';
+    type: 'google' | 'custom';
+    content: {
+        script?: string; // for google
+        imageUrl?: string; // for custom (base64)
+        linkUrl?: string; // for custom
+    };
+    isEnabled: boolean;
 }

@@ -1,8 +1,9 @@
 
+
 import React, { useState, useEffect } from 'react';
 import * as authService from '../services/authService';
 import { generateId } from '../services/authService';
-import type { User, PaymentRequest, RewardSettings, FeatureFlags, SocialMediaSettings, PaymentSettings, PromoCode, ContactMessage, ActivityLogItem, SocialMediaLink, CreditPlan, UpdatePost, HowItWorksStep, FeatureItem } from '../types';
+import type { User, PaymentRequest, RewardSettings, FeatureFlags, SocialMediaSettings, PaymentSettings, PromoCode, ContactMessage, ActivityLogItem, SocialMediaLink, CreditPlan, UpdatePost, HowItWorksStep, FeatureItem, AdPlacement } from '../types';
 
 import EditUserModal from './EditUserModal';
 
@@ -24,12 +25,13 @@ import { ListIcon } from './icons/ListIcon';
 import { ListOrderedIcon } from './icons/ListOrderedIcon';
 import { ChevronUpIcon } from './icons/ChevronUpIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
+import { MegaphoneIcon } from './icons/MegaphoneIcon';
 
 interface AdminPanelProps {
     currentUser: User;
 }
 
-type AdminTab = 'dashboard' | 'users' | 'payments' | 'promos' | 'plans' | 'messages' | 'activity' | 'settings' | 'updates' | 'features' | 'how-it-works';
+type AdminTab = 'dashboard' | 'users' | 'payments' | 'promos' | 'plans' | 'messages' | 'activity' | 'settings' | 'updates' | 'features' | 'how-it-works' | 'ads';
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
@@ -58,6 +60,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                         <TabButton icon={CreditCardIcon} label="Payment Requests" tabName="payments" activeTab={activeTab} onClick={setActiveTab} />
                         <TabButton icon={WalletIcon} label="Credit Plans" tabName="plans" activeTab={activeTab} onClick={setActiveTab} />
                         <TabButton icon={TagIcon} label="Promo Codes" tabName="promos" activeTab={activeTab} onClick={setActiveTab} />
+                        <TabButton icon={MegaphoneIcon} label="Ads Management" tabName="ads" activeTab={activeTab} onClick={setActiveTab} />
                         <TabButton icon={BellIcon} label="Updates" tabName="updates" activeTab={activeTab} onClick={setActiveTab} />
                         <TabButton icon={ListIcon} label="Features" tabName="features" activeTab={activeTab} onClick={setActiveTab} />
                         <TabButton icon={ListOrderedIcon} label="How It Works" tabName="how-it-works" activeTab={activeTab} onClick={setActiveTab} />
@@ -73,6 +76,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser }) => {
                     {activeTab === 'settings' && <SettingsTab />}
                     {activeTab === 'promos' && <PromosTab />}
                     {activeTab === 'plans' && <CreditPlansTab />}
+                    {activeTab === 'ads' && <AdsTab />}
                     {activeTab === 'updates' && <UpdatesTab />}
                     {activeTab === 'features' && <FeaturesTab />}
                     {activeTab === 'how-it-works' && <HowItWorksTab />}
@@ -373,6 +377,7 @@ const SettingsTab = () => {
                             <label className="flex items-center justify-between"><span className="text-sm">Daily Rewards</span><input type="checkbox" checked={featureFlags.isDailyRewardEnabled} onChange={() => setFeatureFlags(p => ({...p, isDailyRewardEnabled: !p.isDailyRewardEnabled}))} /></label>
                             <label className="flex items-center justify-between"><span className="text-sm">AI ChatBot</span><input type="checkbox" checked={featureFlags.isChatBotEnabled} onChange={() => setFeatureFlags(p => ({...p, isChatBotEnabled: !p.isChatBotEnabled}))} /></label>
                             <label className="flex items-center justify-between"><span className="text-sm">Credit Purchase System</span><input type="checkbox" checked={featureFlags.isPurchaseSystemEnabled} onChange={() => setFeatureFlags(p => ({...p, isPurchaseSystemEnabled: !p.isPurchaseSystemEnabled}))} /></label>
+                            <label className="flex items-center justify-between"><span className="text-sm">Ads System</span><input type="checkbox" checked={featureFlags.isAdsSystemEnabled} onChange={() => setFeatureFlags(p => ({...p, isAdsSystemEnabled: !p.isAdsSystemEnabled}))} /></label>
                         </div>
                     </div>
                     {/* Reward Settings */}
@@ -595,6 +600,154 @@ const CreditPlansTab = () => {
     );
 };
 
+const AdsTab = () => {
+    const [ads, setAds] = useState<AdPlacement[]>([]);
+    const [editingAd, setEditingAd] = useState<Partial<AdPlacement> | null>(null);
+
+    const fetchAds = () => setAds(authService.getAds());
+    useEffect(fetchAds, []);
+
+    const handleFileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+        });
+    };
+
+    const handleSave = async () => {
+        if (!editingAd || !editingAd.name || !editingAd.position || !editingAd.type) {
+            alert("Name, Position, and Type are required.");
+            return;
+        }
+        authService.saveAd(editingAd);
+        setEditingAd(null);
+        fetchAds();
+    };
+    
+    const handleDelete = (id: string) => {
+        if (window.confirm("Are you sure you want to delete this ad placement?")) {
+            authService.deleteAd(id);
+            fetchAds();
+        }
+    }
+    
+    const handleToggle = (ad: AdPlacement) => {
+        authService.saveAd({ ...ad, isEnabled: !ad.isEnabled });
+        fetchAds();
+    };
+    
+    const handleCustomImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const base64 = await handleFileToBase64(file);
+            setEditingAd(a => ({
+                ...a,
+                content: {
+                    ...a?.content,
+                    script: undefined,
+                    imageUrl: base64,
+                }
+            }));
+        }
+    };
+
+    const isFormOpen = editingAd !== null;
+
+    return (
+        <AdminSection title="Ads Management">
+             <div className="mb-4">
+                 <button onClick={() => setEditingAd({ isEnabled: true, type: 'google', content: { script: '' } })} className="px-4 py-2 text-sm font-semibold rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors">
+                     + Add New Ad
+                 </button>
+             </div>
+             
+             {isFormOpen && (
+                 <div className="mb-6 p-4 border border-dashed border-light-border dark:border-dark-border rounded-lg space-y-4">
+                    <h3 className="font-semibold">{editingAd.id ? "Edit Ad" : "Create New Ad"}</h3>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Ad Name</label>
+                        <input type="text" value={editingAd.name || ''} onChange={e => setEditingAd(a => ({...a, name: e.target.value}))} placeholder="e.g., Header Banner" className="w-full p-2 rounded bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border" />
+                    </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Position</label>
+                            <select value={editingAd.position || ''} onChange={e => setEditingAd(a => ({...a, position: e.target.value as AdPlacement['position']}))} className="w-full p-2 rounded bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border">
+                                <option value="" disabled>Select a position</option>
+                                <option value="header">Header</option>
+                                <option value="footer">Footer</option>
+                                <option value="leftSidebar">Left Sidebar</option>
+                                <option value="rightSidebar">Right Sidebar</option>
+                                <option value="homepageBanner">Homepage Banner</option>
+                            </select>
+                        </div>
+                        <div>
+                             <label className="block text-sm font-medium mb-1">Ad Type</label>
+                             <div className="flex gap-4 p-2">
+                                <label className="flex items-center gap-2"><input type="radio" name="adType" value="google" checked={editingAd.type === 'google'} onChange={() => setEditingAd(a => ({...a, type: 'google', content: { script: a?.content?.script || ''}}))} /> Google Ad</label>
+                                <label className="flex items-center gap-2"><input type="radio" name="adType" value="custom" checked={editingAd.type === 'custom'} onChange={() => setEditingAd(a => ({...a, type: 'custom', content: { imageUrl: a?.content?.imageUrl || '', linkUrl: a?.content?.linkUrl || ''}}))} /> Custom Ad</label>
+                             </div>
+                        </div>
+                     </div>
+                     
+                     {editingAd.type === 'google' && (
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Google AdSense Code / Script</label>
+                            <textarea rows={4} value={editingAd.content?.script || ''} onChange={e => setEditingAd(a => ({...a, content: { ...a.content, script: e.target.value }}))} className="w-full p-2 rounded bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border font-mono text-xs" />
+                        </div>
+                     )}
+
+                     {editingAd.type === 'custom' && (
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Ad Image</label>
+                                <input type="file" accept="image/*" onChange={handleCustomImageChange} className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"/>
+                                {editingAd.content?.imageUrl && <img src={editingAd.content.imageUrl} alt="Preview" className="mt-2 h-24 object-contain border border-light-border dark:border-dark-border rounded" />}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Redirect Link (Optional)</label>
+                                <input type="url" value={editingAd.content?.linkUrl || ''} onChange={e => setEditingAd(a => ({...a, content: {...a.content, linkUrl: e.target.value}}))} placeholder="https://example.com" className="w-full p-2 rounded bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border" />
+                            </div>
+                        </div>
+                     )}
+
+                    <div className="flex gap-2 mt-4">
+                        <button onClick={handleSave} className="px-4 py-2 text-sm font-semibold rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors">{editingAd.id ? 'Save Changes' : 'Create Ad'}</button>
+                        <button onClick={() => setEditingAd(null)} className="px-4 py-2 text-sm font-semibold rounded-lg bg-light-bg-secondary dark:bg-dark-bg-secondary border border-light-border dark:border-dark-border hover:bg-light-border dark:hover:bg-dark-border transition-colors">Cancel</button>
+                    </div>
+                 </div>
+             )}
+
+             <div className="overflow-x-auto">
+                 <table className="w-full text-sm">
+                    <thead><tr className="border-b border-light-border dark:border-dark-border"><th className="p-2 text-left font-semibold">Name</th><th className="p-2 text-left font-semibold">Position</th><th className="p-2 text-center font-semibold">Type</th><th className="p-2 text-center font-semibold">Status</th><th className="p-2 text-center font-semibold">Actions</th></tr></thead>
+                    <tbody>
+                        {ads.map(ad => (
+                            <tr key={ad.id} className="border-b border-light-border dark:border-dark-border last:border-b-0 hover:bg-light-bg dark:hover:bg-dark-bg">
+                                <td className="p-2 font-semibold">{ad.name}</td>
+                                <td className="p-2 capitalize">{ad.position.replace(/([A-Z])/g, ' $1').trim()}</td>
+                                <td className="p-2 text-center capitalize">{ad.type}</td>
+                                <td className="p-2 text-center">
+                                    <button onClick={() => handleToggle(ad)} className={`px-2 py-0.5 text-xs font-semibold rounded-full ${ad.isEnabled ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                                        {ad.isEnabled ? 'Enabled' : 'Disabled'}
+                                    </button>
+                                </td>
+                                <td className="p-2 text-center">
+                                    <div className="flex gap-2 justify-center">
+                                        <button onClick={() => setEditingAd(ad)} className="text-xs font-medium text-purple-600 hover:underline">Edit</button>
+                                        <button onClick={() => handleDelete(ad.id)} className="text-xs font-medium text-red-500 hover:underline">Delete</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                 </table>
+             </div>
+        </AdminSection>
+    );
+};
+
 const UpdatesTab = () => {
     const [updates, setUpdates] = useState<UpdatePost[]>([]);
     const [editingUpdate, setEditingUpdate] = useState<Partial<UpdatePost> | null>(null);
@@ -750,7 +903,7 @@ const HowItWorksTab = () => {
     );
 };
 
-const availableIcons = ['ZapIcon', 'ShieldCheckIcon', 'GiftIcon', 'MagicWandIcon', 'VideoIcon', 'ChatBubbleIcon'];
+const availableIcons = ['ZapIcon', 'ShieldCheckIcon', 'GiftIcon', 'MagicWandIcon', 'VideoIcon', 'ChatBubbleIcon', 'MegaphoneIcon'];
 
 const FeaturesTab = () => {
     const [features, setFeatures] = useState<FeatureItem[]>([]);

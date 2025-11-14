@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
@@ -23,9 +24,35 @@ import VideoStudio from './components/VideoStudio';
 
 import * as geminiService from './services/geminiService';
 import * as authService from './services/authService';
-import type { User, GeneratedImage, RewardSettings, FeatureFlags, SocialMediaSettings, ChatMessage, ChatSession, CreditPlan, PaymentRequest, VideoGenerationHistoryItem } from './types';
+import type { User, GeneratedImage, RewardSettings, FeatureFlags, SocialMediaSettings, ChatMessage, ChatSession, CreditPlan, PaymentRequest, VideoGenerationHistoryItem, AdPlacement } from './types';
 import { CREDIT_COST_PER_IMAGE, CREDIT_COST_PER_CHAT_MESSAGE, CONTACT_EMAIL, CREDIT_COST_PER_VIDEO_GENERATION } from './constants';
 import { Content } from '@google/genai';
+
+const AdRenderer: React.FC<{ ad: AdPlacement | undefined, className?: string }> = ({ ad, className }) => {
+    if (!ad || !ad.isEnabled) {
+        return null;
+    }
+
+    const adContent = () => {
+        if (ad.type === 'google' && ad.content.script) {
+            return <div dangerouslySetInnerHTML={{ __html: ad.content.script }} />;
+        }
+        if (ad.type === 'custom' && ad.content.imageUrl) {
+            const img = <img src={ad.content.imageUrl} alt={ad.name} className="w-full h-auto" />;
+            if (ad.content.linkUrl) {
+                return <a href={ad.content.linkUrl} target="_blank" rel="sponsored noopener noreferrer">{img}</a>;
+            }
+            return img;
+        }
+        return null;
+    };
+
+    return (
+        <div className={`ad-placement ad-placement-${ad.position} ${className || ''}`}>
+            {adContent()}
+        </div>
+    );
+};
 
 const App: React.FC = () => {
     const [theme, setTheme] = useState<'light' | 'dark'>('dark');
@@ -41,6 +68,7 @@ const App: React.FC = () => {
     const [socialMediaSettings, setSocialMediaSettings] = useState(() => authService.getSocialMediaSettings());
     const [paymentSettings, setPaymentSettings] = useState(() => authService.getPaymentSettings());
     const [creditPlans, setCreditPlans] = useState(() => authService.getCreditPlans());
+    const [ads, setAds] = useState<AdPlacement[]>([]);
 
     const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -84,6 +112,7 @@ const App: React.FC = () => {
             setSocialMediaSettings(authService.getSocialMediaSettings());
             setPaymentSettings(authService.getPaymentSettings());
             setCreditPlans(authService.getCreditPlans());
+            setAds(authService.getAds());
         }
     }, [isAdminView]);
 
@@ -338,6 +367,15 @@ const App: React.FC = () => {
         setPaymentModalOpen(false);
         setSelectedPlan(null);
     }
+    
+    // Filter ads by position
+    const enabledAds = ads.filter(ad => ad.isEnabled && featureFlags.isAdsSystemEnabled);
+    const headerAd = enabledAds.find(ad => ad.position === 'header');
+    const footerAd = enabledAds.find(ad => ad.position === 'footer');
+    const leftSidebarAd = enabledAds.find(ad => ad.position === 'leftSidebar');
+    const rightSidebarAd = enabledAds.find(ad => ad.position === 'rightSidebar');
+    const homepageBannerAd = enabledAds.find(ad => ad.position === 'homepageBanner');
+
 
     return (
         <div className={`font-sans min-h-screen bg-light-bg text-light-text dark:bg-dark-bg dark:text-dark-text`}>
@@ -353,59 +391,82 @@ const App: React.FC = () => {
                 onRewardClick={() => setRewardModalOpen(true)}
                 hasRewardAvailable={rewardStatus.availableReward > 0}
                 featureFlags={featureFlags}
+                ad={headerAd}
             />
 
             <main>
                 {isAdminView && user?.isAdmin ? (
                     <AdminPanel currentUser={user} />
                 ) : (
-                    <>
-                        <div className="container mx-auto px-4">
-                            <Hero ref={heroRef} onGenerate={handleGenerate} isLoading={isLoading} />
-                            
-                            {error && (
-                                <div className="my-4 p-4 text-center text-red-800 bg-red-100 dark:bg-red-900/30 dark:text-red-300 rounded-lg">
-                                    <p>{error}</p>
-                                </div>
+                    <div className="container mx-auto px-4">
+                        <div className="flex gap-6">
+                            {leftSidebarAd && (
+                                <aside className="w-1/5 hidden lg:block py-16">
+                                    <div className="sticky top-24">
+                                        <AdRenderer ad={leftSidebarAd} />
+                                    </div>
+                                </aside>
                             )}
+                            <div className="flex-1 min-w-0">
+                                <Hero ref={heroRef} onGenerate={handleGenerate} isLoading={isLoading} />
+                                
+                                {homepageBannerAd && (
+                                    <div className="my-8">
+                                        <AdRenderer ad={homepageBannerAd} />
+                                    </div>
+                                )}
+                                
+                                {error && (
+                                    <div className="my-4 p-4 text-center text-red-800 bg-red-100 dark:bg-red-900/30 dark:text-red-300 rounded-lg">
+                                        <p>{error}</p>
+                                    </div>
+                                )}
 
-                            <ImageGallery
-                                images={generatedImages}
-                                isLoading={isLoading}
-                                onEnhance={handleEnhance}
-                                onPreview={setPreviewImage}
-                            />
-                            
-                            {user && user.paymentHistory && user.paymentHistory.length > 0 && (
-                                <PaymentHistory paymentHistory={user.paymentHistory} />
-                            )}
-                            
-                            {featureFlags.isImageStudioEnabled && <ImageEnhancer onEditImage={handleImageEdit} />}
+                                <ImageGallery
+                                    images={generatedImages}
+                                    isLoading={isLoading}
+                                    onEnhance={handleEnhance}
+                                    onPreview={setPreviewImage}
+                                />
+                                
+                                {user && user.paymentHistory && user.paymentHistory.length > 0 && (
+                                    <PaymentHistory paymentHistory={user.paymentHistory} />
+                                )}
+                                
+                                {featureFlags.isImageStudioEnabled && <ImageEnhancer onEditImage={handleImageEdit} />}
 
-                            {featureFlags.isVideoGeneratorEnabled && (
-                                <div id="video-studio" className="pt-16">
-                                    <VideoStudio 
-                                        user={user}
-                                        onGenerateVideo={handleGenerateVideo}
-                                        onUpdateHistory={handleUpdateVideoHistory}
-                                        onDeleteHistory={handleDeleteVideoHistory}
-                                    />
-                                </div>
-                            )}
+                                {featureFlags.isVideoGeneratorEnabled && (
+                                    <div id="video-studio" className="pt-16">
+                                        <VideoStudio 
+                                            user={user}
+                                            onGenerateVideo={handleGenerateVideo}
+                                            onUpdateHistory={handleUpdateVideoHistory}
+                                            onDeleteHistory={handleDeleteVideoHistory}
+                                        />
+                                    </div>
+                                )}
 
-                            <div id="features" className="pt-16"><Features featureFlags={featureFlags} /></div>
-                            <div id="how-it-works" className="pt-16"><HowItWorks featureFlags={featureFlags} /></div>
-                            <div id="updates" className="pt-16"><Updates /></div>
-                            {featureFlags.isPurchaseSystemEnabled && (
-                                <div id="pricing" className="pt-16"><Pricing plans={creditPlans} onPurchase={handlePurchase} /></div>
+                                <div id="features" className="pt-16"><Features featureFlags={featureFlags} /></div>
+                                <div id="how-it-works" className="pt-16"><HowItWorks featureFlags={featureFlags} /></div>
+                                <div id="updates" className="pt-16"><Updates /></div>
+                                {featureFlags.isPurchaseSystemEnabled && (
+                                    <div id="pricing" className="pt-16"><Pricing plans={creditPlans} onPurchase={handlePurchase} /></div>
+                                )}
+                                <ContactUs onContactSubmit={handleContactSubmit} />
+                            </div>
+                            {rightSidebarAd && (
+                                <aside className="w-1/5 hidden lg:block py-16">
+                                    <div className="sticky top-24">
+                                        <AdRenderer ad={rightSidebarAd} />
+                                    </div>
+                                </aside>
                             )}
-                            <ContactUs onContactSubmit={handleContactSubmit} />
                         </div>
-                    </>
+                    </div>
                 )}
             </main>
 
-            <Footer socialMediaSettings={socialMediaSettings} />
+            <Footer socialMediaSettings={socialMediaSettings} ad={footerAd} />
 
             <LoginModal
                 isOpen={isLoginModalOpen}

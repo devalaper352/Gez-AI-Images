@@ -214,7 +214,14 @@ const VideoStudio: React.FC<VideoStudioProps> = ({ user, onGenerateVideo, onUpda
     );
 };
 
-const VideoHistoryItem = ({ item, onDelete, isGenerating }: { item: VideoGenerationHistoryItem, onDelete: (id: string) => void, isGenerating: boolean }) => {
+// Fix: Define props interface and use React.FC for VideoHistoryItem component to fix TypeScript error.
+interface VideoHistoryItemProps {
+    item: VideoGenerationHistoryItem;
+    onDelete: (id: string) => void;
+    isGenerating: boolean;
+}
+
+const VideoHistoryItem: React.FC<VideoHistoryItemProps> = ({ item, onDelete, isGenerating }) => {
     
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleString(undefined, {
