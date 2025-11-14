@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gez AI Images</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              dark: {
+                bg: '#121212',
+                'bg-secondary': '#1e1e1e',
+                text: '#e0e0e0',
+                'text-secondary': '#a0a0a0',
+                border: '#333333',
+                primary: '#ffffff',
+              },
+              light: {
+                bg: '#f9f9f9',
+                'bg-secondary': '#ffffff',
+                text: '#121212',
+                'text-secondary': '#555555',
+                border: '#e0e0e0',
+                primary: '#000000',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { 
+        font-family: 'Inter', sans-serif; 
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        transition: background-color 0.3s ease;
+      }
+      
+      body.dark {
+        background-color: #121212;
+        background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0);
+        background-size: 25px 25px;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes scaleIn {
+        from { transform: scale(0.95); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+      .modal-enter {
+        animation: fadeIn 0.2s cubic-bezier(0, 0, 0.2, 1) forwards;
+      }
+      .modal-content-enter {
+        animation: scaleIn 0.2s cubic-bezier(0, 0, 0.2, 1) forwards;
+      }
+
+      @keyframes background-pan {
+        0% { background-position: 0% center; }
+        100% { background-position: -200% center; }
+      }
+      .animated-gradient {
+        background-size: 200%;
+        animation: background-pan 3s linear infinite;
+      }
+
+      @keyframes shimmer {
+        100% { transform: translateX(100%); }
+      }
+      .shimmer {
+        position: relative;
+        overflow: hidden;
+      }
+      .shimmer::after {
+        content: '';
+        position: absolute;
+        top: 0; right: 0; bottom: 0; left: 0;
+        transform: translateX(-100%);
+        background-image: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0) 0,
+            rgba(255, 255, 255, 0.08) 20%,
+            rgba(255, 255, 255, 0.15) 60%,
+            rgba(255, 255, 255, 0)
+        );
+        animation: shimmer 1.5s infinite;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0"
+  }
+}
+</script>
+</head>
+  <body class="antialiased">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

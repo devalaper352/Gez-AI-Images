@@ -1,0 +1,5 @@
+{
+  "name": "Gez AI Images",
+  "description": "A professional, user-friendly web platform that allows users to generate high-quality AI images based on text prompts using Google's Imagen model. Features a credit-based system, a dark/light theme, and a privacy-first approach with no permanent image storage.",
+  "requestFramePermissions": []
+}
